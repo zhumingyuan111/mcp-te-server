@@ -4,7 +4,6 @@ import { CONFIG } from './config.js';
 
 export interface TokenCache {
   bearerToken?: string;
-  mcpToken?: string;
   obtainedAt?: number;
 }
 
@@ -32,25 +31,8 @@ export class TokenManager {
     return this.cache.bearerToken;
   }
 
-  getMcpToken(): string | undefined {
-    return this.cache.mcpToken;
-  }
-
   async setBearerToken(token: string): Promise<void> {
     this.cache.bearerToken = token;
-    await this.save();
-  }
-
-  async setMcpToken(token: string): Promise<void> {
-    this.cache.mcpToken = token;
-    this.cache.obtainedAt = Date.now();
-    await this.save();
-  }
-
-  async setTokens(bearerToken: string, mcpToken: string): Promise<void> {
-    this.cache.bearerToken = bearerToken;
-    this.cache.mcpToken = mcpToken;
-    this.cache.obtainedAt = Date.now();
     await this.save();
   }
 

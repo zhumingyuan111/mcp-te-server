@@ -20,11 +20,11 @@ function log(msg: string): void {
 export class McpProxy {
   private remoteClient: Client | null = null;
   private localServer: Server | null = null;
-  private mcpToken: string;
+  private bearerToken: string;
   private onTokenExpired: (() => Promise<string>) | null = null;
 
-  constructor(mcpToken: string) {
-    this.mcpToken = mcpToken;
+  constructor(bearerToken: string) {
+    this.bearerToken = bearerToken;
   }
 
   setTokenExpiredHandler(handler: () => Promise<string>): void {
@@ -32,7 +32,7 @@ export class McpProxy {
   }
 
   updateToken(newToken: string): void {
-    this.mcpToken = newToken;
+    this.bearerToken = newToken;
   }
 
   async start(): Promise<void> {
@@ -49,8 +49,10 @@ export class McpProxy {
     log(`Connecting to TE MCP server at ${CONFIG.MCP_URL}...`);
 
     const url = new URL(CONFIG.MCP_URL);
-    const headers = { 'mcpToken': this.mcpToken };
-    const isHttp = url.pathname.endsWith('/http') || url.pathname.includes('/mcp/http');
+    const headers = {
+      'Authorization': 'bearer ' + this.bearerToken
+    };
+    const isHttp = url.pathname.includes('/http');
 
     let transport;
     if (isHttp) {
@@ -85,7 +87,22 @@ export class McpProxy {
       { capabilities: {} },
     );
 
-    await this.remoteClient.connect(transport);
+    try {
+      await this.remoteClient.connect(transport);
+    } catch {
+      if (!this.onTokenExpired) throw new Error('Connection failed');
+      log('Connection failed, regenerating token...');
+      this.bearerToken = await this.onTokenExpired();
+      const newHeaders = { 'Authorization': 'bearer ' + this.bearerToken };
+      transport = isHttp
+        ? new StreamableHTTPClientTransport(url, { requestInit: { headers: newHeaders } })
+        : new SSEClientTransport(url, {
+            eventSourceInit: { fetch: (url: string | URL, init?: RequestInit) => fetch(url, { ...init, headers: { ...(init?.headers as Record<string, string> || {}), ...newHeaders } }) } as any,
+            requestInit: { headers: newHeaders },
+          });
+      this.remoteClient = new Client({ name: 'mcp-te-proxy-client', version: '1.0.0' }, { capabilities: {} });
+      await this.remoteClient.connect(transport);
+    }
     log('Connected to remote TE MCP server.');
   }
 
@@ -165,7 +182,7 @@ export class McpProxy {
           log(`Auth error (attempt ${attempt}/${retries}), re-authenticating...`);
           try {
             const newToken = await this.onTokenExpired();
-            this.mcpToken = newToken;
+            this.bearerToken = newToken;
             await this.reconnectRemote();
             continue; // retry
           } catch (reAuthError) {

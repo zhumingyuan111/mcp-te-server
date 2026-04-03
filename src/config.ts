@@ -22,7 +22,6 @@ export const CONFIG = {
   // TE System URLs (derived from TE_BASE_URL)
   BASE_URL: baseUrl,
   LOGIN_URL: `${baseUrl}/login`,
-  OBTAIN_TOKEN_URL: `${baseUrl}/v1/oauth/obtainMcpToken`,
   // TE_HTTP_URL takes priority over TE_SSE_URL; falls back to auto-generated SSE URL
   MCP_URL: process.env.TE_HTTP_URL || process.env.TE_SSE_URL || defaultMcpUrl,
 

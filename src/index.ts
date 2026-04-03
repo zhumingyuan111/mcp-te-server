@@ -19,16 +19,16 @@ async function main(): Promise<void> {
   const authFlow = new AuthFlow(tokenManager);
 
   // Get mcpToken (from cache or through authentication)
-  let mcpToken: string;
+  let bearerToken: string;
   try {
-    mcpToken = await authFlow.authenticate();
+    bearerToken = await authFlow.authenticate();
   } catch (error) {
     log(`Authentication failed: ${error}`);
     process.exit(1);
   }
 
   // Start MCP proxy
-  const proxy = new McpProxy(mcpToken);
+  const proxy = new McpProxy(bearerToken);
 
   // Set up token refresh handler
   proxy.setTokenExpiredHandler(async () => {
@@ -44,8 +44,8 @@ async function main(): Promise<void> {
     if (error?.message?.includes('401') || error?.message?.includes('connect')) {
       log('Initial connection failed, attempting re-authentication...');
       try {
-        mcpToken = await authFlow.reauthenticate();
-        proxy.updateToken(mcpToken);
+        bearerToken = await authFlow.reauthenticate();
+        proxy.updateToken(bearerToken);
         await proxy.start();
       } catch (reAuthError) {
         log(`Failed after re-authentication: ${reAuthError}`);
